@@ -26,14 +26,15 @@ const CreatePoll: React.FC = () => {
     poll.startsAt = new Date(poll.startsAt).getTime()
     poll.endsAt = new Date(poll.endsAt).getTime()
 
-    await toast.promise( new Promise<void>((resolve, reject) => {
+    await toast.promise(new Promise<void>((resolve, reject) => {
       CreatePoll(poll)
     }),
-    {
-      pending: 'Approve transaction...',
-      success: 'Poll created successfully',
-      error: ' Encountered an error',
-    })
+      {
+        pending: 'Approve transaction...',
+        success: 'Poll created successfully',
+        error: ' Encountered an error',
+      }
+    )
   }
 
   const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {

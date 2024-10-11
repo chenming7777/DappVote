@@ -11,7 +11,12 @@ import DeletePoll from '@/components/DeletePoll'
 import { useDispatch, useSelector } from 'react-redux'
 import { globalActions } from '@/store/globalSlices'
 import { useEffect } from 'react'
-import { getPoll } from '@/services/blockchain'
+import { getContestants, getPoll } from '@/services/blockchain'
+import { useRouter } from 'next/router'
+
+
+
+
 
 export default function Polls({
   pollData,
@@ -23,11 +28,14 @@ export default function Polls({
   const dispatch = useDispatch()
   const { setPoll, setContestants } = globalActions
   const { poll, contestants } = useSelector((states: RootState) => states.globalStates)
+  const router = useRouter()
+  const { id } = router.query
 
   useEffect(() => {
     dispatch(setPoll(pollData))
     dispatch(setContestants(contestantsData))
-  }, [dispatch, setPoll, pollData, setContestants, contestantsData])
+
+  }, [dispatch, setPoll, pollData, setContestants, contestantsData, id])
   return (
     <>
       {poll && (
@@ -61,13 +69,13 @@ export default function Polls({
 
 export const getServerSideProps = async (context: GetServerSidePropsContext) => {
   const { id } = context.query
-  const pollData = await getPoll(id)
-  const contestantData = generateFakeContestants(2)
+  const pollData = await getPoll(Number(id))
+  const contestantData = await getContestants(Number(id))
 
   return {
     props: {
       pollData: JSON.parse(JSON.stringify(pollData)),
-      contestantsData: JSON.parse(JSON.stringify(contestantData)),
+      contestantData: JSON.parse(JSON.stringify(contestantData)),
     },
   }
 }

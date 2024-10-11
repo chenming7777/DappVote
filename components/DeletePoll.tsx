@@ -1,17 +1,43 @@
-import { PollStruct } from '@/utils/types'
+import { deletePoll } from '@/services/blockchain'
+import { globalActions } from '@/store/globalSlices'
+import { PollStruct, RootState } from '@/utils/types'
 import { BsTrash3Fill } from 'react-icons/bs'
 import React from 'react'
 import { FaTimes } from 'react-icons/fa'
+import { useDispatch, useSelector } from 'react-redux'
+import { toast } from 'react-toastify'
+import { useRouter } from 'next/router'
 
 const DeletePoll: React.FC<{ poll: PollStruct }> = ({ poll }) => {
-  const deleteModal = 'scale-0'
+  const dispatch = useDispatch()
+  const { setDeleteModal } = globalActions
+  const { wallet, deleteModal } = useSelector((states: RootState) => states.globalStates)
+  const router = useRouter()
 
   const handleDelete = async () => {
-    console.log(poll)
-    closeModal()
+    if (wallet === '') return toast.warning('Connect wallet first!')
+    await toast.promise(
+      new Promise<void>((resolve, reject) => {
+        deletePoll(poll.id)
+          .then((tx) => {
+            closeModal()
+            console.log(tx)
+            router.push('/')
+            resolve(tx)
+          })
+          .catch((error) => reject(error))
+      }),
+      {
+        pending: 'Approve transaction...',
+        success: 'Poll deleted successfully 👌',
+        error: 'Encountered error 🤯',
+      }
+    )
   }
 
-  const closeModal = () => {}
+  const closeModal = () => {
+    dispatch(setDeleteModal('scale-0'))
+  }
 
   return (
     <div
@@ -49,4 +75,4 @@ const DeletePoll: React.FC<{ poll: PollStruct }> = ({ poll }) => {
   )
 }
 
-export default DeletePoll
+export default DeletePoll 

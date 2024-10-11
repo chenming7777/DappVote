@@ -1,9 +1,15 @@
-import { PollStruct } from '@/utils/types'
+import { contestPoll } from '@/services/blockchain'
+import { globalActions } from '@/store/globalSlices'
+import { PollStruct, RootState } from '@/utils/types'
 import React, { ChangeEvent, FormEvent, useState } from 'react'
 import { FaTimes } from 'react-icons/fa'
+import { useDispatch, useSelector } from 'react-redux'
+import { toast } from 'react-toastify'
 
 const ContestPoll: React.FC<{ poll: PollStruct }> = ({ poll }) => {
-  const contestModal = 'scale-0'
+  const dispatch = useDispatch()
+  const { setContestModal } = globalActions
+  const { wallet, contestModal } = useSelector((states: RootState) => states.globalStates)
 
   const [contestant, setContestant] = useState({
     name: '',
@@ -22,12 +28,28 @@ const ContestPoll: React.FC<{ poll: PollStruct }> = ({ poll }) => {
     e.preventDefault()
 
     if (!contestant.name || !contestant.image) return
+    if (wallet === '') return toast.warning('Connect wallet first!')
 
-    console.log(contestant)
-    closeModal()
+    await toast.promise(
+      new Promise<void>((resolve, reject) => {
+        contestPoll(poll.id, contestant.name, contestant.image)
+          .then((tx) => {
+            closeModal()
+            console.log(tx)
+            resolve(tx)
+          })
+          .catch((error) => reject(error))
+      }),
+      {
+        pending: 'Approve transaction...',
+        success: 'Poll contested successfully 👌',
+        error: 'Encountered error 🤯',
+      }
+    )
   }
 
   const closeModal = () => {
+    dispatch(setContestModal('scale-0'))
     setContestant({
       name: '',
       image: '',

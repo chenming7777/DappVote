@@ -3,10 +3,10 @@ import address from '@/artifacts/contractAddress.json';
 import abi from '@/artifacts/contracts/DappVotes.sol/DappVotes.json';
 import { globalActions } from '@/store/globalSlices';
 import { store } from '@/store';
-import { PollParams, PollStruct } from '@/utils/types';
+import { ContestantStruct, PollParams, PollStruct, TruncateParams } from '@/utils/types';
 
 
-const { setWallet, setPolls } = globalActions
+const { setWallet, setPolls, setPoll, setContestants } = globalActions
 const ContractAddress = address.address
 const ContractAbi = abi.abi
 let ethereum: any
@@ -16,9 +16,22 @@ if (typeof window !== 'undefined') {
   ethereum = (window as any).ethereum
 }
 
+const getEthereumContract = async () => {
+  const accounts = await ethereum?.request?.({ method: 'eth_accounts' })
+  const provider = accounts?.[0]
+    ? new ethers.providers.Web3Provider(ethereum)
+    : new ethers.providers.JsonRpcProvider(process.env.NEXT_APP_RPC_URL)
+  const wallet = accounts?.[0] ? null : ethers.Wallet.createRandom()
+  const signer = provider.getSigner(accounts?.[0] ? undefined : wallet?.address)
+
+  const contract = new ethers.Contract(ContractAddress, ContractAbi, signer)
+  return contract
+}
+
+
 const connectWallet = async () => {
   try {
-    if (!ethereum) return reportError('Please install MetaMask')
+    if (!ethereum) return reportError('Please install Metamask')
     const accounts = await ethereum.request?.({ method: 'eth_requestAccounts' })
     store.dispatch(setWallet(accounts?.[0]))
   } catch (error) {
@@ -42,7 +55,7 @@ const checkWallet = async () => {
     })
 
     if (accounts?.length) {
-      store.dispatch(setWallet(accounts?.[0]))
+      store.dispatch(setWallet(accounts[0]))
 
     } else {
       store.dispatch(setWallet(''))
@@ -54,42 +67,117 @@ const checkWallet = async () => {
 }
 
 
-const getEthereumContract = async () => {
-  const accounts = await ethereum?.request?.({ method: 'eth_accounts' })
-  const provider = accounts?.[0]
-    ? new ethers.providers.Web3Provider(ethereum)
-    : new ethers.providers.JsonRpcProvider(process.env.NEXT_APP_RPC_URL)
-  const wallet = accounts?.[0] ? null : ethers.Wallet.createRandom()
-  const signer = provider.getSigner(accounts?.[0] ? undefined : wallet?.address)
-
-  const contract = new ethers.Contract(ContractAddress, ContractAbi, signer)
-  return contract
-
-}
 
 
 const createPoll = async (data: PollParams) => {
   if (!ethereum) {
-    reportError('Please install MetaMask')
+    reportError('Please install Metamask')
     return Promise.reject(new Error('Metamask not installed'))
-  } 
+  }
+
   try {
     const contract = await getEthereumContract()
     const { image, title, description, startsAt, endsAt } = data
     const tx = await contract.createPoll(image, title, description, startsAt, endsAt)
 
     await tx.wait()
-
     const polls = await getPolls()
     store.dispatch(setPolls(polls))
-
-
     return Promise.resolve(tx)
   } catch (error) {
     reportError(error)
     return Promise.reject(error)
   }
 }
+
+
+const updatePoll = async (id: number, data: PollParams) => {
+  if (!ethereum) {
+    reportError('Please install Metamask')
+    return Promise.reject(new Error('Metamask not installed'))
+  }
+
+  try {
+    const contract = await getEthereumContract()
+    const { image, title, description, startsAt, endsAt } = data
+    const tx = await contract.updatePoll(id, image, title, description, startsAt, endsAt)
+
+    await tx.wait()
+    const poll = await getPoll(id)
+    store.dispatch(setPoll(poll))
+    return Promise.resolve(tx)
+  } catch (error) {
+    reportError(error)
+    return Promise.reject(error)
+  }
+}
+
+
+const deletePoll = async (id: number) => {
+  if (!ethereum) {
+    reportError('Please install Metamask')
+    return Promise.reject(new Error('Metamask not installed'))
+  }
+
+  try {
+    const contract = await getEthereumContract()
+    const tx = await contract.deletePoll(id)
+
+    await tx.wait()
+    return Promise.resolve(tx)
+  } catch (error) {
+    reportError(error)
+    return Promise.reject(error)
+  }
+}
+
+const contestPoll = async (id: number, name: string, image: string) => {
+  if (!ethereum) {
+    reportError('Please install Metamask')
+    return Promise.reject(new Error('Metamask not installed'))
+  }
+
+  try {
+    const contract = await getEthereumContract()
+    const tx = await contract.contest(id, name, image)
+
+    await tx.wait()
+    const poll = await getPoll(id)
+    store.dispatch(setPoll(poll))
+
+    const contestants = await getContestants(id)
+    store.dispatch(setContestants(contestants))
+    return Promise.resolve(tx)
+  } catch (error) {
+    reportError(error)
+    return Promise.reject(error)
+  }
+}
+
+
+const voteCandidate = async (id: number, cid: number) => {
+  if (!ethereum) {
+    reportError('Please install Metamask')
+    return Promise.reject(new Error('Metamask not installed'))
+  }
+
+  try {
+    const contract = await getEthereumContract()
+    const tx = await contract.vote(id, cid)
+
+    await tx.wait()
+    const poll = await getPoll(id)
+    store.dispatch(setPoll(poll))
+
+    const contestants = await getContestants(id)
+    store.dispatch(setContestants(contestants))
+    return Promise.resolve(tx)
+  } catch (error) {
+    reportError(error)
+    return Promise.reject(error)
+  }
+}
+
 const getPolls = async (): Promise<PollStruct[]> => {
   const contract = await getEthereumContract()
   const polls = await contract.getPolls()
@@ -101,6 +189,67 @@ const getPoll = async (id: number): Promise<PollStruct> => {
   const polls = await contract.getPoll(id)
   return structurePolls([polls])[0]
 }
+
+  
+const getContestants = async (id: number): Promise<ContestantStruct[]> => {
+  const contract = await getEthereumContract()
+  const contestants = await contract.getContestants(id)
+  return structureContestants(contestants)
+}
+
+const truncate = ({ text, startChars, endChars, maxLength }: TruncateParams): string => {
+  if (text.length > maxLength) {
+    let start = text.substring(0, startChars)
+    let end = text.substring(text.length - endChars, text.length)
+    while (start.length + end.length < maxLength) {
+      start = start + '.'
+    }
+    return start + end
+  }
+  return text
+}
+
+const formatDate = (timestamp: number): string => {
+  const date = new Date(timestamp)
+  const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+  const months = [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ]
+
+  const dayOfWeek = daysOfWeek[date.getUTCDay()]
+  const month = months[date.getUTCMonth()]
+  const day = date.getUTCDate()
+  const year = date.getUTCFullYear()
+
+  return `${dayOfWeek}, ${month} ${day}, ${year}`
+}
+
+
+const structureContestants = (contestants: any[]): ContestantStruct[] =>
+  contestants
+    .map((contestant) => ({
+      id: Number(contestant.id),
+      image: contestant.image,
+      name: contestant.name,
+      voter: contestant.voter.toLowerCase(),
+      votes: Number(contestant.votes),
+      voters: contestant.voters.map((voter: string) => voter.toLowerCase()),
+    }))
+    .sort((a, b) => b.votes - a.votes)
+
+
+
 
 const structurePolls = (polls: any[]): PollStruct[] =>
   polls
@@ -127,4 +276,4 @@ const reportError = (error: any) => {
   console.error(error)
 }
 
-export {connectWallet, checkWallet, createPoll, getPolls, getPoll}
+export {connectWallet, checkWallet, createPoll, getPolls, getPoll, updatePoll, deletePoll, contestPoll,getContestants, voteCandidate, truncate, formatDate}
