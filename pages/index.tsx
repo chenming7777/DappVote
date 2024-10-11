@@ -3,11 +3,22 @@ import CreatePoll from '@/components/CreatePoll'
 import Footer from '@/components/Footer'
 import Navbar from '@/components/Navbar'
 import Polls from '@/components/Polls'
-import { PollStruct } from '@/utils/types'
+import { PollStruct, RootState } from '@/utils/types'
 import Head from 'next/head'
-import { generateFakePolls } from '@/services/data'
+import { globalActions } from '@/store/globalSlices'
+import { useDispatch, useSelector } from 'react-redux'
+import { useEffect } from 'react'
+import { getPolls } from '@/services/blockchain'
 
 export default function Home({ pollsData }: { pollsData: PollStruct[] }) {
+  const dispatch = useDispatch()
+  const { setPolls } = globalActions
+  const { polls } = useSelector((states: RootState) => states.globalStates)
+
+  useEffect(() => {
+    dispatch(setPolls(pollsData))
+  }, [dispatch, setPolls, pollsData])
+
   return (
     <>
       <Head>
@@ -24,7 +35,7 @@ export default function Home({ pollsData }: { pollsData: PollStruct[] }) {
         <section className="relative px-5 py-10 space-y-16 text-white sm:p-10">
           <Navbar />
           <Banner />
-          <Polls polls={pollsData} />
+          <Polls polls={polls} />
           <Footer />
         </section>
         <CreatePoll />
@@ -34,7 +45,7 @@ export default function Home({ pollsData }: { pollsData: PollStruct[] }) {
 }
 
 export const getServerSideProps = async () => {
-  const pollsData: PollStruct[] = generateFakePolls(4)
+  const pollsData: PollStruct[] = await getPolls()
   return {
     props: {
       pollsData: JSON.parse(JSON.stringify(pollsData)),
