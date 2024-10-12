@@ -39,7 +39,6 @@ const connectWallet = async () => {
   }
 }
 
-
 const checkWallet = async () => {
   try {
     if (!ethereum) return reportError('Please install MetaMask')
@@ -131,6 +130,7 @@ const deletePoll = async (id: number) => {
   }
 }
 
+
 const contestPoll = async (id: number, name: string, image: string) => {
   if (!ethereum) {
     reportError('Please install Metamask')
@@ -178,6 +178,8 @@ const voteCandidate = async (id: number, cid: number) => {
   }
 }
 
+
+
 const getPolls = async (): Promise<PollStruct[]> => {
   const contract = await getEthereumContract()
   const polls = await contract.getPolls()
@@ -197,6 +199,7 @@ const getContestants = async (id: number): Promise<ContestantStruct[]> => {
   return structureContestants(contestants)
 }
 
+
 const truncate = ({ text, startChars, endChars, maxLength }: TruncateParams): string => {
   if (text.length > maxLength) {
     let start = text.substring(0, startChars)
@@ -208,6 +211,7 @@ const truncate = ({ text, startChars, endChars, maxLength }: TruncateParams): st
   }
   return text
 }
+
 
 const formatDate = (timestamp: number): string => {
   const date = new Date(timestamp)
@@ -236,20 +240,6 @@ const formatDate = (timestamp: number): string => {
 }
 
 
-const structureContestants = (contestants: any[]): ContestantStruct[] =>
-  contestants
-    .map((contestant) => ({
-      id: Number(contestant.id),
-      image: contestant.image,
-      name: contestant.name,
-      voter: contestant.voter.toLowerCase(),
-      votes: Number(contestant.votes),
-      voters: contestant.voters.map((voter: string) => voter.toLowerCase()),
-    }))
-    .sort((a, b) => b.votes - a.votes)
-
-
-
 
 const structurePolls = (polls: any[]): PollStruct[] =>
   polls
@@ -270,10 +260,35 @@ const structurePolls = (polls: any[]): PollStruct[] =>
     }))
     .sort((a, b) => b.timestamp - a.timestamp)
 
+const structureContestants = (contestants: any[]): ContestantStruct[] =>
+  contestants
+    .map((contestant) => ({
+      id: Number(contestant.id),
+      image: contestant.image,
+      name: contestant.name,
+      voter: contestant.voter.toLowerCase(),
+      votes: Number(contestant.votes),
+      voters: contestant.voters.map((voter: string) => voter.toLowerCase()),
+    }))
+    .sort((a, b) => b.votes - a.votes)
+
 
 
 const reportError = (error: any) => {
   console.error(error)
 }
 
-export {connectWallet, checkWallet, createPoll, getPolls, getPoll, updatePoll, deletePoll, contestPoll,getContestants, voteCandidate, truncate, formatDate}
+export {
+  connectWallet,
+  checkWallet,
+  truncate,
+  createPoll,
+  getPolls,
+  getPoll,
+  updatePoll, 
+  deletePoll,
+  contestPoll,
+  getContestants,
+  voteCandidate, 
+  formatDate
+  }
